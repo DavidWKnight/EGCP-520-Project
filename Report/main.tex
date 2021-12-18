@@ -10,6 +10,7 @@
 \usepackage[all]{hypcap} % for linking to the top of figures rather than captions
 \usepackage{color}
 \usepackage{caption}
+\usepackage[breaklinks]{hyperref}
 
 \lstset{basicstyle = \ttfamily,columns=fullflexible}
 
@@ -78,36 +79,27 @@
     An Implementation of Fault Tolerant Computing Techniques\\
 }
 \author{
-    David Knight\\
+    David Knight - CWID 889248761\\
 }
-\date{Dec 15, 2021}
+\date{Dec 17, 2021}
 
 \begin{document}
 
 \maketitle
 
-\begin{center}
+\begin{abstract}
+This paper will explore common methods and possible implementations of fault tolerant computing techniques. We will describe how both Triple Modular Redundancy (TMR) and Lockstep Processors work and simulate failures that each of these techniques can either detect or correct. We will provide simulations which will prove the effectiveness of each technique. Finally we will discuss limitations and potential improvements to each technique.
+\end{abstract}
 
-\tableofcontents
+\section{Introduction}
+Potential applications of computers have grown massively since the first computers were created and as a result so has the risks presented by the failure of computers. Many modern computer systems must be designed for harsh environments, must have high reliability, or must be designed for safety-critical systems where failure could result in injury or death. As a result many modern computer systems must be designed with these realities in mind. While advanced manufacturing techniques can be employed to reduce the likelihood of failure of the silicon it is critical that these systems are still able to detect when these failures when they will inevitable occur of the course of many operational hours. Many techniques have been developed to address these requirements of which two will be explored in this paper, Triple Modular Redundancy (TMR) and Lockstep Processors.
 
-\end{center}
-
-\pagebreak
-
-\section{Proposal}
-This project will implement two methods of fault tolerant computing by modifying a single cycle MIPS processor. A MIPS processor will be modified to become a lockstep processor similar to an ARM Cortex R processor such that a second core is running the same program but delayed by 1 clock cycle. The ALU of the MIPS processor will be modified using a technique called Triple Modular Redundancy (TMR) such that any errors during computation will not detected and fixed. The TMR will operate seamlessly to the program that is being run however an error detected by the lockstep CPU will cause a system reset. The MIPS processor will only support a few simple instructions such as simple ALU operations and load/store instructions; branch and jump instructions will not be supported so the design can be completed in a reasonable time.
+\section{Project Specifications}
+This project will implement two methods of fault tolerant computing by modifying a single cycle MIPS processor. A MIPS processor will be modified to become a lockstep processor similar to an ARM Cortex R processor such that a second core is running the same program but delayed by 1 clock cycle. The ALU of the MIPS processor will be modified using a technique called Triple Modular Redundancy (TMR) such that any errors during computation will not detected and fixed. The TMR will operate seamlessly to the program that is being run however an error detected by the lockstep CPU will cause a system reset. The MIPS processor will only support a few simple instructions such as simple ALU operations and load/store instructions; branch and jump instructions will not be supported.
 
 The project will be implemented in VHDL using the Vivado simulator. The processor instruction memory and data memory will be initialized with two separate memory files at startup. Modules such as the ALU and the register file will be implemented with generics which introduce bit flips to logic to create momentary "faults" which will cause errors in computation. Through simulation both the TMR and the lockstep processor modifications will be show to either detect or even correct these errors.
 
-The base single cycle MIPS processor will be implemented by 15th of November. TMR will be implemented in the ALU by the 22th of November. The complete lockstep CPU will be implemented by the 8th of December. The final report will be completed by the 15th of December
-
-List of deliverables:
-\begin{itemize}
-    \item Final project report.
-    \item VHDL code implementing features described above.
-    \item Example program to be run on the processor (Including Assembly and machine code implementations).
-    \item Initialization file for RAM.
-\end{itemize}
+Full source code and Vivado project files will be provided on GitHub at \url{https://github.com/DavidWKnight/EGCP-520-Project}
 
 \section{MIPS Design}
 This processor is a simple design that implements the basic architecture of a single cycle MIPS processor including the fetch, decode, execute, memory access and write back stages. The instruction memory is initialized on reset with a hard coded program, the program is show below in listing \ref{lst:program}. This program tests the load instruction and a number of basic ALU instructions. The store instruction is not tested because it will not demonstrate anything that the load instruction cannot show.
@@ -125,18 +117,19 @@ The data memory is also initialized on reset with the value $0x0D$ in R0 and $0x
 
 \section{Triple Modular Redundancy ALU}
 \subsection{Implementation}
-In it's most simplest form Triple Modular Redundancy is implemented with 3 copies of the module being tested are instantiated and then all the outputs being fed into a "voter" module that selects the most correct answer. A simple example is shown in \autoref{fig:basic_tmr} where a Boolean logic gate is implemented with TMR. 3 copies of the gate are instantiated and then a majority gate is implemented where the most common gate output is selected as the final answer.
+In its most simplest form Triple Modular Redundancy is implemented with 3 copies of the module being tested are instantiated and then all the outputs being fed into a "voter" module that selects the most correct answer. A simple example is shown in \autoref{fig:basic_tmr} where a Boolean logic gate is implemented with TMR. 3 copies of the gate are instantiated and then a majority gate is implemented where the most common gate output is selected as the final answer.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.7\textwidth]{Triple_Modular_Redundancy.jpg}
-    \captionsource{A simplified diagram of TMR.}{https://en.wikipedia.org/wiki/Triple\_modular\_redundancy}
+    \captionsource{A simplified diagram of TMR.}{\url{https://en.wikipedia.org/wiki/Triple\_modular\_redundancy}}
     \label{fig:basic_tmr}
 \end{figure}
 
-This example is greatly simplified because each gate can output only one of two options, logic high or logic low, therefor the majority gate will always have at least two gates in agreement. For our ALU design we will instantiate 3 different ALUs however each ALU output will have 32 bits of output that our new majority gate will need to decide between and to make things more difficult we decided to make this TMR design transparent to the user which means that we can't alert the user if all gates disagree.
+This example is greatly simplified because each gate can output only one of two options, logic high or logic low, therefore the majority gate will always have at least two gates in agreement. For our ALU design we will instantiate 3 different ALUs however each ALU output will have 32 bits of output that our new majority gate will need to decide between and to make things more difficult we decided to make this TMR design transparent to the user which means that we can't alert the user if all gates disagree.
 
-The compromise I chose to make is to choose ALU0 when the correct answer when all gates disagree. While this is a limitation to the design the logic is greatly simplified because the only case were ALU0 will not be chosen is when ALU1 = ALU2. If ALU1 != ALU2 then either ALU0 will equal ALU1 or ALU2 or neither, in any cause ALU0 is the resulting answer. Because we don't need to report disagreement between all gates no more logic is required to meet the design requirements. Thus the majority gate logic can be simplified to:
+The compromise we chose to make is to choose ALU0 when the correct answer when all gates disagree. While this is a limitation to the design the logic is greatly simplified because the only case were ALU0 will not be chosen is when ALU1 = ALU2. If ALU1 != ALU2 then either ALU0 will equal ALU1 or ALU2 or neither, in any cause ALU0 is the resulting answer. Because we don't need to report disagreement between all gates no more logic is required to meet the design requirements. Thus the majority gate logic can be simplified to the pseudocode shown in Algorithm 1.
+\newpage % Needed to make final version of the paper look nicer
 \begin{algorithm}[caption={ALU Majority Gate Logic.}, label={majority_gate_logic}]
 if (ALU1 = ALU2)
     choose ALU1
@@ -145,7 +138,7 @@ else
 \end{algorithm}
 
 \subsection{Simulation}
-To simulate a fault in the ALU I have added a generic which when set to 1 causes the output of the ALU to always be stuck at A5A5A5A5 regardless of inputs or the operation being performed. While most failures would likely be more subtle the TMR operation will be the same. First in \autoref{fig:aluFault} we can see the output of the program when the fault occurs without TMR enabled. Next in \autoref{fig:tmrSuccess} we can see the output of the program when TMR is enabled, notice signal alu\_out[0] is stuck at A5A5A5A5 however alu\_out[1] and alu\_out[2] are correct.
+To simulate a fault in the ALU we have added a generic which when set to 1 causes the output of the ALU to always be stuck at A5A5A5A5 regardless of inputs or the operation being performed. While most failures would likely be more subtle the TMR operation will be the same. First in \autoref{fig:aluFault} we can see the output of the program when the fault occurs without TMR enabled. Next in \autoref{fig:tmrSuccess} we can see the output of the program when TMR is enabled, notice signal alu\_out[0] is stuck at A5A5A5A5 however alu\_out[1] and alu\_out[2] are correct.
 
 \begin{figure}[H]
     \centering
@@ -165,7 +158,7 @@ To simulate a fault in the ALU I have added a generic which when set to 1 causes
 \subsection{Implementation}
 Generally speaking a lockstep system is a system where a second copy of the system is instantiated and run in parallel to the primary system to determine if a fault occurs. A fault is found when one of the two systems disagree with each other in some way. Unlike the TMR design the lockstep design is less standardized which means we have much more freedom both in determining how we determine a fault has occurred and how to respond to it.
 
-For our design I will determine a fault by comparing key signals between the primary and redundant processors. The compared signals will consist of the program counter, outputs of the control unit, and inputs/outputs of the ALU. If any of these signals in the primary processor disagrees with the corresponding signals in the redundant processor a reset signal will be send to both processors to prevent continued execution on faulty hardware.
+For our design we will determine a fault by comparing key signals between the primary and redundant processors. The compared signals will consist of the program counter, outputs of the control unit, and inputs/outputs of the ALU. If any of these signals in the primary processor disagrees with the corresponding signals in the redundant processor a reset signal will be send to both processors to prevent continued execution on faulty hardware.
 
 %All signals that will be compared between the CPUs will be made outputs from the CPU design so they can be compared in a top level module. All compared signals that are just a Boolean can be compared using a simple xor operation a signal that is true when the two processor signals are out of step. Signals that are more than one bit in size can be xor'd together and then all of the resulting bits can be or'd together to get our final out of step signal. Finally all of these out of step signals can be or'd together to create a signal signal that is true when the primary and redundant processors are out of step. This signal can be or'd with the external reset signal to reset both processors.
 
@@ -181,31 +174,24 @@ A lockstep fault will be simulated adding a generic to the control unit which wi
     \label{fig:lockstepSuccess}
 \end{figure}
 
-\section{Future Improvements}
-Throughout this design I have had to make a number of compromises to make the design practical for a single semester project, however I have had a number of ideas on possible improvements that could improve the function or simulation of the design. Below I have listed some of these future improvements that can be investigated
+\section{Future Directions}
+Throughout this design we have had to make a number of compromises to make the design practical for a single semester project, however we have had a number of ideas on possible improvements that could improve the function or simulation of the design. Below we have listed some of these future improvements that can be investigated.
 
 \begin{itemize}
     \item The lockstep reset signal does not necessarily have to trigger a reset but could instead be used to trigger an interrupt service routine which would allow the user to program in their own response to faults. This functionality would be similar to the lockstep feature in the ARM Cortex-R family of processors.
     
-    \item The current design adds physical separation between both CPUs so a simple fault that affects one section of the silicon but not the other will be detected by this feature. However to add more protection we could introduce temporal separation by running the redundant CPU a few clock cycles behind the primary CPU. I thinks this could be implemented by adding FIFOs to all of the input signals of the redundant CPU and FIFOs to all of the outputs signals of the primary CPU. This would keep the lockstep comparisons between the two processors in sync while keeping each CPU a few clock cycles separated.
+    \item The current design adds physical separation between both CPUs so a simple fault that affects one section of the silicon but not the other will be detected by this feature. However to add more protection we could introduce temporal separation by running the redundant CPU a few clock cycles behind the primary CPU. We think this could be implemented by adding FIFOs to all of the input signals of the redundant CPU and FIFOs to all of the outputs signals of the primary CPU. This would keep the lockstep comparisons between the two processors in sync while keeping each CPU a few clock cycles separated.
     
     \item Because the lockstep fault is not a simple transient failure the CPU actually gets caught in a reset loop where the processor is reset every 3 clock cycles. Possible solutions for this problem might include turning the processor off after the lockstep fault has occurred on the same instruction more than once.
     
-    \item 
+    \item The primary and redundant lockstep CPUs instantiate their own copies of instruction memory and data memory, a more realistic design would use only a single copy of each to reduce size of the processor and possibly implement other techniques such as Error Correction Code (ECC) to find faults in memory.
+    
+    \item Simulation quality could be greatly improved through use of the VHDL "force" keyword which can be used in testbenches to force an internal signal to different value than it would have otherwise been. This would allow for the simulation of faults without the needing to modified the processor design itself, greatly reducing the risk of accidentally introducing errors.
 \end{itemize}
-Lockstep can be improved by adding temporal separation between the CPUs, a FIFO can be used to delay the CPU signals for comparison.
-
-The lockstep reset signal could be used to trigger and ISR to handle faults rather than triggering resets. This would be similar to the ARM Cortex-R processor.
-
-Because this fault is hard coded into the CPU and not just a transient failure the processor is actually caught into a reset loop whereby the processor is reset every 3 clock cycles.
-
-The primary and redundant lockstep CPUs instantiate their own copies of instruction memory and data memory, a more realistic design would use only a single copy of each to reduce size of the processor and possible implement something like ECC memory on both to find faults there.
-
-Use the alias and force to simplify the testbench. Also make the designs in a for generate loop.
-
-Maybe have the TMR ALU trigger a reset when all 3 ALUs disagree.
 
 \section{Conclusion}
+As computers are required to be involved in increasingly complex and important systems we must remember that these systems are not infallible and that some basic precautions must be taken to ensure reliable operation. To address this problem we have explored two simple methods that can be easily customized to any give computer system to either detect or even correct a fault. Additionally we have discussed potential verification methods which are key in designing high reliability systems. Computer systems designed for harsh environments or for safety critical applications must address these limitations and consider at least some of these basic options for handling faults.
 
+\newpage
 
 \end{document}
